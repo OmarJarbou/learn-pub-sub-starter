@@ -18,7 +18,7 @@ func main() {
 	conn_string := "amqp://guest:guest@localhost:5672/"
 	conn, err := amqp.Dial(conn_string)
 	if err != nil {
-		log.Fatal("Error while connecting to RabbitMQ server:" + err.Error())
+		log.Fatal("Error while connecting to RabbitMQ server: " + err.Error())
 		return
 	}
 	defer conn.Close()
