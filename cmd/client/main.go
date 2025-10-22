@@ -32,7 +32,11 @@ func main() {
 	}
 
 	queue_name := routing.PauseKey + "." + username
-	pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
+	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
+	if err != nil {
+		log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
+		return
+	}
 
 	game_state := gamelogic.NewGameState(username)
 	for {

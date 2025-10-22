@@ -31,6 +31,14 @@ func main() {
 		return
 	}
 
+	queue_name := routing.GameLogSlug
+	routing_key := queue_name + ".*"
+	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, queue_name, routing_key, pubsub.DURABLE)
+	if err != nil {
+		log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
+		return
+	}
+
 	gamelogic.PrintServerHelp()
 	for {
 		words := gamelogic.GetInput()
