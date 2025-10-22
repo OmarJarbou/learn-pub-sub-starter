@@ -31,8 +31,39 @@ func main() {
 		return
 	}
 
-	queueName := routing.PauseKey + "." + username
-	pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.TRANSIENT)
+	queue_name := routing.PauseKey + "." + username
+	pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
+
+	game_state := gamelogic.NewGameState(username)
+	for {
+		words := gamelogic.GetInput()
+		if len(words) < 1 {
+			fmt.Println("you must enter a command from possible commands list.")
+			continue
+		}
+		if words[0] == "spawn" {
+			err = game_state.CommandSpawn(words)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		} else if words[0] == "move" {
+			_, err = game_state.CommandMove(words)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		} else if words[0] == "status" {
+			game_state.CommandStatus()
+		} else if words[0] == "help" {
+			gamelogic.PrintClientHelp()
+		} else if words[0] == "spam" {
+			fmt.Println("Spamming not allowed yet!")
+		} else if words[0] == "quit" {
+			gamelogic.PrintQuit()
+			break
+		} else {
+			fmt.Println("Unknown Command")
+		}
+	}
 
 	// wait for ctrl+c
 	signalChan := make(chan os.Signal, 1)
