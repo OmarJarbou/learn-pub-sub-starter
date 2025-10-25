@@ -32,14 +32,30 @@ func main() {
 	}
 
 	queue_name := routing.PauseKey + "." + username
-	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
-	if err != nil {
-		log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
-		return
-	}
+	// _, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
+	// if err != nil {
+	// 	log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
+	// 	return
+	// }
 
 	game_state := gamelogic.NewGameState(username)
+	errorsChan := make(chan error, 1)
+	go func() {
+		errorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT, handlerPause(game_state))
+	}()
+
 	for {
+		// Check for subscription errors in a non-blocking way
+		select {
+		case err := <-errorsChan:
+			if err != nil {
+				log.Fatal("Error while subscribing to the queue: " + err.Error())
+				return
+			}
+		default:
+			// No error, continue with normal flow
+		}
+
 		words := gamelogic.GetInput()
 		if len(words) < 1 {
 			fmt.Println("you must enter a command from possible commands list.")
