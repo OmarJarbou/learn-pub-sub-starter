@@ -25,13 +25,18 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Connected Successfully!")
 
+	chann, err := conn.Channel()
+	if err != nil {
+		log.Fatal("Error while creating a new channel from the RabbitMQ AMQP connection: " + err.Error())
+		return
+	}
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatal("Error while welcoming client: " + err.Error())
 		return
 	}
 
-	queue_name := routing.PauseKey + "." + username
 	// _, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT)
 	// if err != nil {
 	// 	log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
@@ -39,17 +44,26 @@ func main() {
 	// }
 
 	game_state := gamelogic.NewGameState(username)
-	errorsChan := make(chan error, 1)
+	pauseErrorsChan := make(chan error, 1)
+	moveErrorsChan := make(chan error, 1)
 	go func() {
-		errorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.TRANSIENT, handlerPause(game_state))
+		pauseErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.TRANSIENT, handlerPause(game_state))
+	}()
+	go func() {
+		moveErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, routing.ArmyMovesPrefix+".*", pubsub.TRANSIENT, handlerMove(game_state))
 	}()
 
 	for {
 		// Check for subscription errors in a non-blocking way
 		select {
-		case err := <-errorsChan:
+		case err := <-pauseErrorsChan:
 			if err != nil {
-				log.Fatal("Error while subscribing to the queue: " + err.Error())
+				log.Fatal("Error while subscribing to the pause queue: " + err.Error())
+				return
+			}
+		case err := <-moveErrorsChan:
+			if err != nil {
+				log.Fatal("Error while subscribing to the move queue: " + err.Error())
 				return
 			}
 		default:
@@ -67,10 +81,16 @@ func main() {
 				fmt.Println(err.Error())
 			}
 		} else if words[0] == "move" {
-			_, err = game_state.CommandMove(words)
+			army_move, err := game_state.CommandMove(words)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
+			err = pubsub.PublishJSON(chann, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, army_move)
+			if err != nil {
+				log.Fatal("Error while publishing the move message: " + err.Error())
+				return
+			}
+			fmt.Println("The move was published successfully!")
 		} else if words[0] == "status" {
 			game_state.CommandStatus()
 		} else if words[0] == "help" {
