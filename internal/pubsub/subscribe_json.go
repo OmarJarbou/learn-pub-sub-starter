@@ -3,8 +3,17 @@ package pubsub
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+type Acktype int
+
+const (
+	ACK Acktype = iota
+	NACK_REQUEUE
+	NACK_DISCARD
 )
 
 func SubscribeJSON[T any](
@@ -13,7 +22,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-	handler func(T),
+	handler func(T) Acktype,
 ) error {
 	chann, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -36,8 +45,18 @@ func SubscribeJSON[T any](
 				errChan <- errors.New("Error while decoding message's body: " + err.Error())
 				return
 			}
-			handler(body)
-			delivery.Ack(false) // to remove the message from the queue
+			ack := handler(body)
+			switch ack {
+			case ACK:
+				delivery.Ack(false)
+				fmt.Println("ACK: Message processed successfully, remove it from the queue")
+			case NACK_REQUEUE:
+				delivery.Nack(false, true)
+				fmt.Println("NACK_REQUEUE: Requeue the failed message to proccess it again")
+			case NACK_DISCARD:
+				delivery.Nack(false, false)
+				fmt.Println("NACK_DISCARD: Discard the failed message and send it to dead letter queue")
+			}
 		}
 		errChan <- nil // Signal completion without error
 	}()
