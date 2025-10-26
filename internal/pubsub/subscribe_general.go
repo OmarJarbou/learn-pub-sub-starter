@@ -39,6 +39,10 @@ func subscribeGeneral[T any](
 		return errors.New("Error while declaring a new queue and bind it to an exchange: " + err.Error())
 	}
 
+	err = chann.Qos(10, 0, false)
+	if err != nil {
+		return errors.New("Error while dsetting a prefetch limit: " + err.Error())
+	}
 	deliveries_chann, err := chann.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return errors.New("Error while creating the consuming channel: " + err.Error())
