@@ -1,13 +1,48 @@
 package gamelogic
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
 	"sync"
+	"time"
+
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type GameState struct {
 	Player Player
 	Paused bool
 	mu     *sync.RWMutex
+}
+
+func (gs *GameState) CommandSpam(words []string, ch *amqp.Channel) error {
+	if len(words) < 2 {
+		return errors.New("usage: spam <loops>")
+	}
+
+	loops, err := strconv.Atoi(words[1])
+	if err != nil {
+		return errors.New("spam command only accepts integers: " + err.Error())
+	}
+
+	for i := loops; i >= 0; i-- {
+		game_log := routing.GameLog{
+			CurrentTime: time.Now(),
+			Message:     GetMaliciousLog(),
+			Username:    gs.GetUsername(),
+		}
+		err := pubsub.PublishGob(ch, routing.ExchangePerilTopic, routing.GameLogSlug+"."+gs.GetUsername(), game_log)
+		if err != nil {
+			fmt.Println("Error while publishing the war result message: " + err.Error())
+		}
+	}
+	fmt.Println(words[1] + " logs has been published successfully!")
+
+	return nil
 }
 
 func NewGameState(username string) *GameState {

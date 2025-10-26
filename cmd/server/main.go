@@ -35,7 +35,7 @@ func main() {
 	routing_key := queue_name + ".*"
 	logsErrorsChan := make(chan error, 1)
 	go func() {
-		logsErrorsChan <- pubsub.SubscribeGob(conn, routing.ExchangePerilDirect, queue_name, routing_key, pubsub.DURABLE, handlerLogs())
+		logsErrorsChan <- pubsub.SubscribeGob(conn, routing.ExchangePerilTopic, queue_name, routing_key, pubsub.DURABLE, handlerLogs())
 	}()
 
 	gamelogic.PrintServerHelp()

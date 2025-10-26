@@ -105,7 +105,10 @@ func main() {
 		} else if words[0] == "help" {
 			gamelogic.PrintClientHelp()
 		} else if words[0] == "spam" {
-			fmt.Println("Spamming not allowed yet!")
+			err = game_state.CommandSpam(words, chann)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 		} else if words[0] == "quit" {
 			gamelogic.PrintQuit()
 			break
