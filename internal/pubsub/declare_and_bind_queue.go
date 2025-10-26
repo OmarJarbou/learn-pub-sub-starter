@@ -27,7 +27,11 @@ func DeclareAndBind(
 		return nil, amqp_queue, errors.New("Error while creating a new channel from the RabbitMQ AMQP connection: " + err.Error())
 	}
 
-	queue, err := chann.QueueDeclare(queueName, (queueType == DURABLE), (queueType == TRANSIENT), (queueType == TRANSIENT), false, nil)
+	queue_args := amqp.Table{
+		"x-dead-letter-exchange": "peril_dlx",
+	}
+
+	queue, err := chann.QueueDeclare(queueName, (queueType == DURABLE), (queueType == TRANSIENT), (queueType == TRANSIENT), false, queue_args)
 	if err != nil {
 		return chann, amqp_queue, errors.New("Error while creating a new queue using the RabbitMQ AMQP channel: " + err.Error())
 	}
