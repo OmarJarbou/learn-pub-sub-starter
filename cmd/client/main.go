@@ -46,11 +46,15 @@ func main() {
 	game_state := gamelogic.NewGameState(username)
 	pauseErrorsChan := make(chan error, 1)
 	moveErrorsChan := make(chan error, 1)
+	warErrorsChan := make(chan error, 1)
 	go func() {
 		pauseErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.TRANSIENT, handlerPause(game_state))
 	}()
 	go func() {
-		moveErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, routing.ArmyMovesPrefix+".*", pubsub.TRANSIENT, handlerMove(game_state))
+		moveErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+username, routing.ArmyMovesPrefix+".*", pubsub.TRANSIENT, handlerMove(game_state, chann))
+	}()
+	go func() {
+		warErrorsChan <- pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.DURABLE, handlerWar(game_state))
 	}()
 
 	for {
@@ -64,6 +68,11 @@ func main() {
 		case err := <-moveErrorsChan:
 			if err != nil {
 				log.Fatal("Error while subscribing to the move queue: " + err.Error())
+				return
+			}
+		case err := <-warErrorsChan:
+			if err != nil {
+				log.Fatal("Error while subscribing to the war queue: " + err.Error())
 				return
 			}
 		default:
