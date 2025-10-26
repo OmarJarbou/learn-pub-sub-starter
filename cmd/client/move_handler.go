@@ -12,7 +12,6 @@ import (
 
 func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyMove) pubsub.Acktype {
 	return func(am gamelogic.ArmyMove) pubsub.Acktype {
-		defer fmt.Print("> ")
 		move_outcome := gs.HandleMove(am)
 		if move_outcome == gamelogic.MoveOutComeSafe {
 			return pubsub.ACK

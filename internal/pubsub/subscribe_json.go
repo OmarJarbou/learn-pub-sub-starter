@@ -50,12 +50,15 @@ func SubscribeJSON[T any](
 			case ACK:
 				delivery.Ack(false)
 				fmt.Println("ACK: Message processed successfully, remove it from the queue")
+				fmt.Print("> ")
 			case NACK_REQUEUE:
 				delivery.Nack(false, true)
 				fmt.Println("NACK_REQUEUE: Requeue the failed message to proccess it again")
+				fmt.Print("> ")
 			case NACK_DISCARD:
 				delivery.Nack(false, false)
 				fmt.Println("NACK_DISCARD: Discard the failed message and send it to dead letter queue")
+				fmt.Print("> ")
 			}
 		}
 		errChan <- nil // Signal completion without error
