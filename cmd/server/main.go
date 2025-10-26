@@ -33,14 +33,21 @@ func main() {
 
 	queue_name := routing.GameLogSlug
 	routing_key := queue_name + ".*"
-	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, queue_name, routing_key, pubsub.DURABLE)
-	if err != nil {
-		log.Fatal("Error while declaring a new queue and bind it to an exchange: " + err.Error())
-		return
-	}
+	logsErrorsChan := make(chan error, 1)
+	go func() {
+		logsErrorsChan <- pubsub.SubscribeGob(conn, routing.ExchangePerilDirect, queue_name, routing_key, pubsub.DURABLE, handlerLogs())
+	}()
 
 	gamelogic.PrintServerHelp()
 	for {
+		select {
+		case err := <-logsErrorsChan:
+			if err != nil {
+				log.Fatal("Error while subscribing to the logs queue: " + err.Error())
+				return
+			}
+		}
+
 		words := gamelogic.GetInput()
 		if len(words) != 1 {
 			fmt.Println("you must enter a one word command from possible commands list.")
